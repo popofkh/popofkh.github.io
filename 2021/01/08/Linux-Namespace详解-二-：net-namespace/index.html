@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2">
+<meta name="theme-color" content="#222">
+<meta name="generator" content="Hexo 5.2.0">
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png">
+  <link rel="mask-icon" href="/images/logo.svg" color="#222">
+
+<link rel="stylesheet" href="/css/main.css">
+
+
+<link rel="stylesheet" href="/lib/font-awesome/css/all.min.css">
+
+<script id="hexo-configurations">
+    var NexT = window.NexT || {};
+    var CONFIG = {"hostname":"example.com","root":"/","scheme":"Mist","version":"7.8.0","exturl":false,"sidebar":{"position":"left","display":"post","padding":18,"offset":12,"onmobile":false},"copycode":{"enable":false,"show_result":false,"style":null},"back2top":{"enable":true,"sidebar":false,"scrollpercent":false},"bookmark":{"enable":false,"color":"#222","save":"auto"},"fancybox":false,"mediumzoom":false,"lazyload":false,"pangu":false,"comments":{"style":"tabs","active":null,"storage":true,"lazyload":false,"nav":null},"algolia":{"hits":{"per_page":10},"labels":{"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}},"localsearch":{"enable":false,"trigger":"auto","top_n_per_article":1,"unescape":false,"preload":false},"motion":{"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}}};
+  </script>
+
+  <meta name="description" content="参考来源： https:&#x2F;&#x2F;www.cnblogs.com&#x2F;bakari&#x2F;p&#x2F;10443484.html#406017600  Linux network namespace：ip命令和Linux network namespace相关的操作子命令为ip netns、ip link 创建net namespace123[root@control-plane ~]# ip netns add ne">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Linux Namespace详解(二)：net namespace">
+<meta property="og:url" content="http://example.com/2021/01/08/Linux-Namespace%E8%AF%A6%E8%A7%A3-%E4%BA%8C-%EF%BC%9Anet-namespace/index.html">
+<meta property="og:site_name" content="popoのblog">
+<meta property="og:description" content="参考来源： https:&#x2F;&#x2F;www.cnblogs.com&#x2F;bakari&#x2F;p&#x2F;10443484.html#406017600  Linux network namespace：ip命令和Linux network namespace相关的操作子命令为ip netns、ip link 创建net namespace123[root@control-plane ~]# ip netns add ne">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/2021/01/08/Linux-Namespace%E8%AF%A6%E8%A7%A3-%E4%BA%8C-%EF%BC%9Anet-namespace/2021-01-08-Linux-Namespace详解-二-：net-namespace/cross-netns-two.png">
+<meta property="og:image" content="http://example.com/2021/01/08/Linux-Namespace%E8%AF%A6%E8%A7%A3-%E4%BA%8C-%EF%BC%9Anet-namespace/2021-01-08-Linux-Namespace详解-二-：net-namespace/cross-netns-multi.png">
+<meta property="article:published_time" content="2021-01-08T11:12:02.000Z">
+<meta property="article:modified_time" content="2021-01-11T07:14:17.821Z">
+<meta property="article:author" content="popo_fkh">
+<meta property="article:tag" content="Linux">
+<meta property="article:tag" content="Network">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="http://example.com/2021/01/08/Linux-Namespace%E8%AF%A6%E8%A7%A3-%E4%BA%8C-%EF%BC%9Anet-namespace/2021-01-08-Linux-Namespace详解-二-：net-namespace/cross-netns-two.png">
+
+<link rel="canonical" href="http://example.com/2021/01/08/Linux-Namespace%E8%AF%A6%E8%A7%A3-%E4%BA%8C-%EF%BC%9Anet-namespace/">
+
+
+<script id="page-configurations">
+  // https://hexo.io/docs/variables.html
+  CONFIG.page = {
+    sidebar: "",
+    isHome : false,
+    isPost : true,
+    lang   : 'zh-CN'
+  };
+</script>
+
+  <title>Linux Namespace详解(二)：net namespace | popoのblog</title>
+  
+
+
+
+
+
+
+  <noscript>
+  <style>
+  .use-motion .brand,
+  .use-motion .menu-item,
+  .sidebar-inner,
+  .use-motion .post-block,
+  .use-motion .pagination,
+  .use-motion .comments,
+  .use-motion .post-header,
+  .use-motion .post-body,
+  .use-motion .collection-header { opacity: initial; }
+
+  .use-motion .site-title,
+  .use-motion .site-subtitle {
+    opacity: initial;
+    top: initial;
+  }
+
+  .use-motion .logo-line-before i { left: initial; }
+  .use-motion .logo-line-after i { right: initial; }
+  </style>
+</noscript>
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage">
+  <div class="container use-motion">
+    <div class="headband"></div>
+
+    <header class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-container">
+  <div class="site-nav-toggle">
+    <div class="toggle" aria-label="切换导航栏">
+      <span class="toggle-line toggle-line-first"></span>
+      <span class="toggle-line toggle-line-middle"></span>
+      <span class="toggle-line toggle-line-last"></span>
+    </div>
+  </div>
+
+  <div class="site-meta">
+
+    <a href="/" class="brand" rel="start">
+      <span class="logo-line-before"><i></i></span>
+      <h1 class="site-title">popoのblog</h1>
+      <span class="logo-line-after"><i></i></span>
+    </a>
+  </div>
+
+  <div class="site-nav-right">
+    <div class="toggle popup-trigger">
+    </div>
+  </div>
+</div>
+
+
+
+
+<nav class="site-nav">
+  <ul id="menu" class="main-menu menu">
+        <li class="menu-item menu-item-home">
+
+    <a href="/" rel="section"><i class="fa fa-home fa-fw"></i>首页</a>
+
+  </li>
+        <li class="menu-item menu-item-about">
+
+    <a href="/about/" rel="section"><i class="fa fa-user fa-fw"></i>关于</a>
+
+  </li>
+        <li class="menu-item menu-item-tags">
+
+    <a href="/tags/" rel="section"><i class="fa fa-tags fa-fw"></i>标签</a>
+
+  </li>
+        <li class="menu-item menu-item-archives">
+
+    <a href="/archives/" rel="section"><i class="fa fa-archive fa-fw"></i>归档</a>
+
+  </li>
+        <li class="menu-item menu-item-schedule">
+
+    <a href="/schedule/" rel="section"><i class="fa fa-calendar fa-fw"></i>日程表</a>
+
+  </li>
+        <li class="menu-item menu-item-sitemap">
+
+    <a href="/sitemap.xml" rel="section"><i class="fa fa-sitemap fa-fw"></i>站点地图</a>
+
+  </li>
+  </ul>
+</nav>
+
+
+
+
+</div>
+    </header>
+
+    
+  <div class="back-to-top">
+    <i class="fa fa-arrow-up"></i>
+    <span>0%</span>
+  </div>
+
+
+    <main class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          
+
+          <div class="content post posts-expand">
+            
+
+    
+  
+  
+  <article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN">
+    <link itemprop="mainEntityOfPage" href="http://example.com/2021/01/08/Linux-Namespace%E8%AF%A6%E8%A7%A3-%E4%BA%8C-%EF%BC%9Anet-namespace/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="image" content="/images/avatar.jpg">
+      <meta itemprop="name" content="popo_fkh">
+      <meta itemprop="description" content="">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="popoのblog">
+    </span>
+      <header class="post-header">
+        <h1 class="post-title" itemprop="name headline">
+          Linux Namespace详解(二)：net namespace
+        </h1>
+
+        <div class="post-meta">
+            <span class="post-meta-item">
+              <span class="post-meta-item-icon">
+                <i class="far fa-calendar"></i>
+              </span>
+              <span class="post-meta-item-text">发表于</span>
+
+              <time title="创建时间：2021-01-08 19:12:02" itemprop="dateCreated datePublished" datetime="2021-01-08T19:12:02+08:00">2021-01-08</time>
+            </span>
+              <span class="post-meta-item">
+                <span class="post-meta-item-icon">
+                  <i class="far fa-calendar-check"></i>
+                </span>
+                <span class="post-meta-item-text">更新于</span>
+                <time title="修改时间：2021-01-11 15:14:17" itemprop="dateModified" datetime="2021-01-11T15:14:17+08:00">2021-01-11</time>
+              </span>
+
+          
+            <span class="post-meta-item" title="阅读次数" id="busuanzi_container_page_pv" style="display: none;">
+              <span class="post-meta-item-icon">
+                <i class="fa fa-eye"></i>
+              </span>
+              <span class="post-meta-item-text">阅读次数：</span>
+              <span id="busuanzi_value_page_pv"></span>
+            </span>
+
+        </div>
+      </header>
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+        <blockquote>
+<p>参考来源：</p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/bakari/p/10443484.html#406017600">https://www.cnblogs.com/bakari/p/10443484.html#406017600</a></p>
+</blockquote>
+<h1 id="Linux-network-namespace：ip命令"><a href="#Linux-network-namespace：ip命令" class="headerlink" title="Linux network namespace：ip命令"></a>Linux network namespace：ip命令</h1><p>和Linux network namespace相关的操作子命令为<code>ip netns</code>、<code>ip link</code></p>
+<h2 id="创建net-namespace"><a href="#创建net-namespace" class="headerlink" title="创建net namespace"></a>创建net namespace</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip netns add net1</span><br><span class="line">[root@control-plane ~]# ip netns ls</span><br><span class="line">net1</span><br></pre></td></tr></table></figure>
+
+<h2 id="进入net-namespace"><a href="#进入net-namespace" class="headerlink" title="进入net namespace"></a>进入net namespace</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip netns exec net1 ip addr</span><br><span class="line">1: lo: &lt;LOOPBACK&gt; mtu 65536 qdisc noop state DOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">[root@control-plane ~]# ip netns exec net1 bash</span><br><span class="line">[root@control-plane ~]# ip addr</span><br><span class="line">1: lo: &lt;LOOPBACK&gt; mtu 65536 qdisc noop state DOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">[root@control-plane ~]# exit</span><br><span class="line">exit</span><br></pre></td></tr></table></figure>
+
+<h2 id="两个net-namespace间通信"><a href="#两个net-namespace间通信" class="headerlink" title="两个net namespace间通信"></a>两个net namespace间通信</h2><p>两个network namespace之间通信，可以借助虚拟网络设备veth pair。拓扑图如下：</p>
+<img src="2021-01-08-Linux-Namespace详解-二-：net-namespace/cross-netns-two.png" alt="cross-netns-two" style="zoom:60%;" />
+
+<h3 id="创建veth-pair"><a href="#创建veth-pair" class="headerlink" title="创建veth pair"></a>创建veth pair</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip link add type veth</span><br><span class="line">[root@control-plane ~]# ip link</span><br><span class="line">14: veth0@veth1: &lt;BROADCAST,MULTICAST,M-DOWN&gt; mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000</span><br><span class="line">    link/ether 5a:b3:38:ff:19:68 brd ff:ff:ff:ff:ff:ff</span><br><span class="line">15: veth1@veth0: &lt;BROADCAST,MULTICAST,M-DOWN&gt; mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000</span><br><span class="line">    link/ether 76:fe:86:96:87:e4 brd ff:ff:ff:ff:ff:ff</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，veth pair总是成对出现的，使用命令 <code>ip link add xxx type veth peer name yyy</code> 指定 veth pair 的两个网络接口名。</p>
+<h3 id="将veth-pair加入net-namespace"><a href="#将veth-pair加入net-namespace" class="headerlink" title="将veth pair加入net namespace"></a>将veth pair加入net namespace</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip link set veth0 netns net0</span><br><span class="line">[root@control-plane ~]# ip link set veth1 netns net1</span><br><span class="line">[root@control-plane ~]# ip netns exec net0 ip addr</span><br><span class="line">1: lo: &lt;LOOPBACK&gt; mtu 65536 qdisc noop state DOWN group default qlen 1000</span><br><span class="line">    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00</span><br><span class="line">14: veth0@if15: &lt;BROADCAST,MULTICAST&gt; mtu 1500 qdisc noop state DOWN group default qlen 1000</span><br><span class="line">    link/ether 5a:b3:38:ff:19:68 brd ff:ff:ff:ff:ff:ff link-netnsid 1</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，net interface接入namespace后，初始状态为DOWN。</p>
+<h3 id="给veth-pair配上IP地址"><a href="#给veth-pair配上IP地址" class="headerlink" title="给veth pair配上IP地址"></a>给veth pair配上IP地址</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip netns exec net0 ip link set veth0 up </span><br><span class="line">[root@control-plane ~]# ip netns exec net0 ip addr add 10.1.1.1/24 dev veth0</span><br><span class="line">[root@control-plane ~]# ip netns exec net0 ip route </span><br><span class="line">10.1.1.0/24 dev veth0 proto kernel scope link src 10.1.1.1</span><br><span class="line">[root@control-plane ~]# ip netns exec net1 ip link set veth1 up</span><br><span class="line">[root@control-plane ~]# ip netns exec net1 ip addr add 10.1.1.2/24 dev veth1</span><br><span class="line">[root@control-plane ~]# ip netns exec net1 ip route </span><br><span class="line">10.1.1.0/24 dev veth1 proto kernel scope link src 10.1.1.2</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，配置完IP地址后，自动生成了路由信息。</p>
+<h3 id="测试连通性"><a href="#测试连通性" class="headerlink" title="测试连通性"></a>测试连通性</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip netns exec net0 ping 10.1.1.2</span><br><span class="line">PING 10.1.1.2 (10.1.1.2) 56(84) bytes of data.</span><br><span class="line">64 bytes from 10.1.1.2: icmp_seq=1 ttl=64 time=0.055 ms</span><br><span class="line">64 bytes from 10.1.1.2: icmp_seq=2 ttl=64 time=0.042 ms</span><br></pre></td></tr></table></figure>
+
+
+
+<h2 id="多个net-namespace之间通信"><a href="#多个net-namespace之间通信" class="headerlink" title="多个net namespace之间通信"></a>多个net namespace之间通信</h2><p>两个namespace之间通信可以借助veth pair，多个net namespace之间的通信则更适合用bridge来转接。拓扑图如下：</p>
+<img src="2021-01-08-Linux-Namespace详解-二-：net-namespace/cross-netns-multi.png" alt="cross-netns-multi" style="zoom:60%;" />
+
+<h3 id="使用ip-link和brctl创建bridge"><a href="#使用ip-link和brctl创建bridge" class="headerlink" title="使用ip link和brctl创建bridge"></a>使用ip link和brctl创建bridge</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip link add br0 type bridge </span><br><span class="line">[root@control-plane ~]# ip link set dev br0 up</span><br><span class="line">[root@control-plane ~]# ip link</span><br><span class="line">16: br0: &lt;BROADCAST,MULTICAST,UP,LOWER_UP&gt; mtu 1500 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000</span><br><span class="line">    link/ether 2e:ea:a9:1e:70:3b brd ff:ff:ff:ff:ff:ff</span><br></pre></td></tr></table></figure>
+
+<h3 id="创建veth-pair-1"><a href="#创建veth-pair-1" class="headerlink" title="创建veth pair"></a>创建veth pair</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip link add type veth</span><br><span class="line">[root@control-plane ~]# ip link add type veth</span><br><span class="line">[root@control-plane ~]# ip link add type veth</span><br></pre></td></tr></table></figure>
+
+<h3 id="将veth-pair的一端挂到namespace，另一端挂到bridge"><a href="#将veth-pair的一端挂到namespace，另一端挂到bridge" class="headerlink" title="将veth pair的一端挂到namespace，另一端挂到bridge"></a>将veth pair的一端挂到namespace，另一端挂到bridge</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip link set dev veth1 netns net0</span><br><span class="line">[root@control-plane ~]# ip netns exec net0 ip link set dev veth1 name eth0</span><br><span class="line">[root@control-plane ~]# ip netns exec net0 ip addr add 10.0.1.1/24 dev eth0</span><br><span class="line">[root@control-plane ~]# ip netns exec net0 ip link set dev eth0 up</span><br><span class="line"></span><br><span class="line">[root@control-plane ~]# ip link set dev veth0 master br0</span><br><span class="line">[root@control-plane ~]# ip link set dev veth0 up</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[root@control-plane ~]# ip link set dev veth3 netns net1</span><br><span class="line">[root@control-plane ~]# ip netns exec net1 ip link set dev veth3 name eth0</span><br><span class="line">[root@control-plane ~]# ip netns exec net1 ip addr add 10.0.1.2/24 dev eth0</span><br><span class="line">[root@control-plane ~]# ip netns exec net1 ip link set dev eth0 up</span><br><span class="line"></span><br><span class="line">[root@control-plane ~]# ip link set dev veth2 master br0</span><br><span class="line">[root@control-plane ~]# ip link set dev veth2 up</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[root@control-plane ~]# ip link set dev veth5 netns net2</span><br><span class="line">[root@control-plane ~]# ip netns exec net2 ip link set dev veth5 name eth0</span><br><span class="line">[root@control-plane ~]# ip netns exec net2 ip addr add 10.0.1.3/24 dev eth0</span><br><span class="line">[root@control-plane ~]# ip netns exec net2 ip link set dev eth0 up</span><br><span class="line"></span><br><span class="line">[root@control-plane ~]# ip link set dev veth4 master br0</span><br><span class="line">[root@control-plane ~]# ip link set dev veth4 up</span><br></pre></td></tr></table></figure>
+
+<h3 id="测试连通性-1"><a href="#测试连通性-1" class="headerlink" title="测试连通性"></a>测试连通性</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">[root@control-plane ~]# ip netns exec net0 ping 10.0.1.2</span><br><span class="line">PING 10.0.1.2 (10.0.1.2) 56(84) bytes of data.</span><br><span class="line">64 bytes from 10.0.1.2: icmp_seq=1 ttl=64 time=0.075 ms</span><br><span class="line">64 bytes from 10.0.1.2: icmp_seq=2 ttl=64 time=0.059 ms</span><br><span class="line">^C</span><br><span class="line">--- 10.0.1.2 ping statistics ---</span><br><span class="line">2 packets transmitted, 2 received, 0% packet loss, time 999ms</span><br><span class="line">rtt min/avg/max/mdev = 0.059/0.067/0.075/0.008 ms</span><br><span class="line"></span><br><span class="line">[root@control-plane ~]# ip netns exec net0 ping 10.0.1.3</span><br><span class="line">PING 10.0.1.3 (10.0.1.3) 56(84) bytes of data.</span><br><span class="line">64 bytes from 10.0.1.3: icmp_seq=1 ttl=64 time=0.105 ms</span><br><span class="line">64 bytes from 10.0.1.3: icmp_seq=2 ttl=64 time=0.049 ms</span><br><span class="line">^C</span><br><span class="line">--- 10.0.1.3 ping statistics ---</span><br><span class="line">2 packets transmitted, 2 received, 0% packet loss, time 999ms</span><br><span class="line">rtt min/avg/max/mdev = 0.049/0.077/0.105/0.028 ms</span><br></pre></td></tr></table></figure>
+
+<p>上述数据表明，三个network namespace之间可以互相访问。</p>
+
+    </div>
+
+    
+    
+    
+
+      <footer class="post-footer">
+          <div class="post-tags">
+              <a href="/tags/Linux/" rel="tag"># Linux</a>
+              <a href="/tags/Network/" rel="tag"># Network</a>
+          </div>
+
+        
+
+
+        
+    <div class="post-nav">
+      <div class="post-nav-item">
+    <a href="/2021/01/08/Linux-Namespace%E8%AF%A6%E8%A7%A3-%E4%B8%80-%EF%BC%9A%E7%BB%BC%E8%BF%B0/" rel="prev" title="Linux Namespace详解(一)：综述">
+      <i class="fa fa-chevron-left"></i> Linux Namespace详解(一)：综述
+    </a></div>
+      <div class="post-nav-item">
+    <a href="/2021/01/09/%E6%8A%80%E6%9C%AF%E4%BA%BA%E5%A6%82%E4%BD%95%E7%94%BB%E6%8A%80%E6%9C%AF%E5%9B%BE/" rel="next" title="技术人如何画技术图">
+      技术人如何画技术图 <i class="fa fa-chevron-right"></i>
+    </a></div>
+    </div>
+      </footer>
+    
+  </article>
+  
+  
+  
+
+
+
+          </div>
+          
+
+<script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script>
+
+        </div>
+          
+  
+  <div class="toggle sidebar-toggle">
+    <span class="toggle-line toggle-line-first"></span>
+    <span class="toggle-line toggle-line-middle"></span>
+    <span class="toggle-line toggle-line-last"></span>
+  </div>
+
+  <aside class="sidebar">
+    <div class="sidebar-inner">
+
+      <ul class="sidebar-nav motion-element">
+        <li class="sidebar-nav-toc">
+          文章目录
+        </li>
+        <li class="sidebar-nav-overview">
+          站点概览
+        </li>
+      </ul>
+
+      <!--noindex-->
+      <div class="post-toc-wrap sidebar-panel">
+          <div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#Linux-network-namespace%EF%BC%9Aip%E5%91%BD%E4%BB%A4"><span class="nav-number">1.</span> <span class="nav-text">Linux network namespace：ip命令</span></a><ol class="nav-child"><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%88%9B%E5%BB%BAnet-namespace"><span class="nav-number">1.1.</span> <span class="nav-text">创建net namespace</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E8%BF%9B%E5%85%A5net-namespace"><span class="nav-number">1.2.</span> <span class="nav-text">进入net namespace</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E4%B8%A4%E4%B8%AAnet-namespace%E9%97%B4%E9%80%9A%E4%BF%A1"><span class="nav-number">1.3.</span> <span class="nav-text">两个net namespace间通信</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%9B%E5%BB%BAveth-pair"><span class="nav-number">1.3.1.</span> <span class="nav-text">创建veth pair</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%86veth-pair%E5%8A%A0%E5%85%A5net-namespace"><span class="nav-number">1.3.2.</span> <span class="nav-text">将veth pair加入net namespace</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E7%BB%99veth-pair%E9%85%8D%E4%B8%8AIP%E5%9C%B0%E5%9D%80"><span class="nav-number">1.3.3.</span> <span class="nav-text">给veth pair配上IP地址</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E8%BF%9E%E9%80%9A%E6%80%A7"><span class="nav-number">1.3.4.</span> <span class="nav-text">测试连通性</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#%E5%A4%9A%E4%B8%AAnet-namespace%E4%B9%8B%E9%97%B4%E9%80%9A%E4%BF%A1"><span class="nav-number">1.4.</span> <span class="nav-text">多个net namespace之间通信</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#%E4%BD%BF%E7%94%A8ip-link%E5%92%8Cbrctl%E5%88%9B%E5%BB%BAbridge"><span class="nav-number">1.4.1.</span> <span class="nav-text">使用ip link和brctl创建bridge</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%88%9B%E5%BB%BAveth-pair-1"><span class="nav-number">1.4.2.</span> <span class="nav-text">创建veth pair</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E5%B0%86veth-pair%E7%9A%84%E4%B8%80%E7%AB%AF%E6%8C%82%E5%88%B0namespace%EF%BC%8C%E5%8F%A6%E4%B8%80%E7%AB%AF%E6%8C%82%E5%88%B0bridge"><span class="nav-number">1.4.3.</span> <span class="nav-text">将veth pair的一端挂到namespace，另一端挂到bridge</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#%E6%B5%8B%E8%AF%95%E8%BF%9E%E9%80%9A%E6%80%A7-1"><span class="nav-number">1.4.4.</span> <span class="nav-text">测试连通性</span></a></li></ol></li></ol></li></ol></div>
+      </div>
+      <!--/noindex-->
+
+      <div class="site-overview-wrap sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+    <img class="site-author-image" itemprop="image" alt="popo_fkh"
+      src="/images/avatar.jpg">
+  <p class="site-author-name" itemprop="name">popo_fkh</p>
+  <div class="site-description" itemprop="description"></div>
+</div>
+<div class="site-state-wrap motion-element">
+  <nav class="site-state">
+      <div class="site-state-item site-state-posts">
+          <a href="/archives/">
+        
+          <span class="site-state-item-count">6</span>
+          <span class="site-state-item-name">日志</span>
+        </a>
+      </div>
+      <div class="site-state-item site-state-tags">
+            <a href="/tags/">
+          
+        <span class="site-state-item-count">4</span>
+        <span class="site-state-item-name">标签</span></a>
+      </div>
+  </nav>
+</div>
+
+
+
+      </div>
+
+    </div>
+  </aside>
+  <div id="sidebar-dimmer"></div>
+
+
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-inner">
+        
+
+        
+
+<div class="copyright">
+  
+  &copy; 2019 – 
+  <span itemprop="copyrightYear">2021</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">popo_fkh</span>
+</div>
+
+        
+<div class="busuanzi-count">
+  <script async src="https://busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+    <span class="post-meta-item" id="busuanzi_container_site_uv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-user"></i>
+      </span>
+      <span class="site-uv" title="总访客量">
+        <span id="busuanzi_value_site_uv"></span>
+      </span>
+    </span>
+    <span class="post-meta-divider">|</span>
+    <span class="post-meta-item" id="busuanzi_container_site_pv" style="display: none;">
+      <span class="post-meta-item-icon">
+        <i class="fa fa-eye"></i>
+      </span>
+      <span class="site-pv" title="总访问量">
+        <span id="busuanzi_value_site_pv"></span>
+      </span>
+    </span>
+</div>
+
+
+
+
+
+
+
+
+      </div>
+    </footer>
+  </div>
+
+  
+  <script src="/lib/anime.min.js"></script>
+  <script src="/lib/velocity/velocity.min.js"></script>
+  <script src="/lib/velocity/velocity.ui.min.js"></script>
+
+<script src="/js/utils.js"></script>
+
+<script src="/js/motion.js"></script>
+
+
+<script src="/js/schemes/muse.js"></script>
+
+
+<script src="/js/next-boot.js"></script>
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+  
+
+</body>
+</html>
